@@ -4,6 +4,7 @@ import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
 import { TransactionBox } from "@/components/Dashboard/TransactionBox";
 import { TransactionForm } from "@/components/Dashboard/TransactionForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button"; // Add this import
 
 interface Transaction {
   id: number;
