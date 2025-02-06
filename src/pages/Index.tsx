@@ -1,23 +1,20 @@
+import { useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
 import { TransactionList } from "@/components/Dashboard/TransactionList";
+import { TransactionForm } from "@/components/Dashboard/TransactionForm";
+
+interface Transaction {
+  id: number;
+  type: 'income' | 'expense';
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+}
 
 const Index = () => {
-  // Mock data - will be replaced with real data later
-  const financialData = {
-    balance: 5000,
-    income: 8000,
-    expenses: 3000,
-  };
-
-  const budgetDistribution = [
-    { name: "Essenciais", value: 50, color: "#1E3A8A" },
-    { name: "Lazer", value: 20, color: "#059669" },
-    { name: "Desejos", value: 10, color: "#F97316" },
-    { name: "Investimentos", value: 20, color: "#6366F1" },
-  ];
-
-  const recentTransactions = [
+  const [transactions, setTransactions] = useState<Transaction[]>([
     {
       id: 1,
       type: "income",
@@ -42,7 +39,42 @@ const Index = () => {
       category: "Alimentação",
       date: "2024-03-08",
     },
-  ] as const;
+  ]);
+
+  const calculateTotals = () => {
+    const income = transactions
+      .filter((t) => t.type === "income")
+      .reduce((acc, curr) => acc + curr.amount, 0);
+    const expenses = transactions
+      .filter((t) => t.type === "expense")
+      .reduce((acc, curr) => acc + curr.amount, 0);
+    return {
+      income,
+      expenses,
+      balance: income - expenses,
+    };
+  };
+
+  const budgetDistribution = [
+    { name: "Essenciais", value: 50, color: "#1E3A8A" },
+    { name: "Lazer", value: 20, color: "#059669" },
+    { name: "Desejos", value: 10, color: "#F97316" },
+    { name: "Investimentos", value: 20, color: "#6366F1" },
+  ];
+
+  const handleNewTransaction = (data: any) => {
+    const newTransaction: Transaction = {
+      id: transactions.length + 1,
+      type: data.type,
+      description: data.description,
+      amount: parseFloat(data.amount),
+      category: data.category,
+      date: data.date,
+    };
+    setTransactions([...transactions, newTransaction]);
+  };
+
+  const totals = calculateTotals();
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -51,17 +83,23 @@ const Index = () => {
           Controle Financeiro
         </h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <BalanceCard
-            balance={financialData.balance}
-            income={financialData.income}
-            expenses={financialData.expenses}
+            balance={totals.balance}
+            income={totals.income}
+            expenses={totals.expenses}
           />
           <BudgetDistribution data={budgetDistribution} />
         </div>
 
-        <div className="mt-6">
-          <TransactionList transactions={recentTransactions} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Nova Transação</h2>
+            <TransactionForm onSubmit={handleNewTransaction} />
+          </div>
+          <div>
+            <TransactionList transactions={transactions} />
+          </div>
         </div>
       </div>
     </div>
