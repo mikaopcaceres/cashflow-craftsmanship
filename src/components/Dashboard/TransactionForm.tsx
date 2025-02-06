@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
@@ -27,13 +28,15 @@ const formSchema = z.object({
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
   date: z.string().min(1, "Data é obrigatória"),
+  isFixed: z.boolean().optional(),
 });
 
 interface TransactionFormProps {
   onSubmit: (data: z.infer<typeof formSchema>) => void;
+  initialData?: any;
 }
 
-export const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
+export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps) => {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,17 +46,35 @@ export const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
       amount: "",
       category: "",
       date: new Date().toISOString().split("T")[0],
+      isFixed: false,
     },
   });
 
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        type: initialData.type,
+        description: initialData.description,
+        amount: String(initialData.amount),
+        category: initialData.category,
+        date: initialData.date,
+        isFixed: initialData.isFixed || false,
+      });
+    }
+  }, [initialData, form]);
+
   const handleSubmit = (data: z.infer<typeof formSchema>) => {
     onSubmit(data);
-    form.reset();
+    if (!initialData) {
+      form.reset();
+    }
     toast({
-      title: "Transação adicionada com sucesso!",
+      title: initialData ? "Transação atualizada com sucesso!" : "Transação adicionada com sucesso!",
       description: `${data.type === "income" ? "Receita" : "Despesa"}: ${data.description}`,
     });
   };
+
+  const showFixedOption = form.watch("type") === "expense";
 
   return (
     <Form {...form}>
@@ -156,8 +177,28 @@ export const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
           )}
         />
 
+        {showFixedOption && (
+          <FormField
+            control={form.control}
+            name="isFixed"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Despesa Fixa</FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
+
         <Button type="submit" className="w-full">
-          Adicionar Transação
+          {initialData ? 'Atualizar' : 'Adicionar'} Transação
         </Button>
       </form>
     </Form>
