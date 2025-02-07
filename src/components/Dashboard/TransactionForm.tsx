@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -31,6 +32,7 @@ const formSchema = z.object({
   isFixed: z.boolean().optional(),
   isRecurring: z.boolean().optional(),
   installments: z.string().optional(),
+  paidInstallments: z.string().optional(),
   dueDate: z.string().optional(),
 });
 
@@ -52,6 +54,7 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
       isFixed: false,
       isRecurring: false,
       installments: "",
+      paidInstallments: "0",
       dueDate: new Date().toISOString().split("T")[0],
     },
   });
@@ -67,6 +70,7 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
         isFixed: initialData.isFixed || false,
         isRecurring: initialData.isRecurring || false,
         installments: initialData.installments?.total?.toString() || "",
+        paidInstallments: initialData.installments?.paid?.toString() || "0",
         dueDate: initialData.dueDate || new Date().toISOString().split("T")[0],
       });
     }
@@ -84,7 +88,7 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
   };
 
   const showFixedOption = form.watch("type") === "expense";
-  const showRecurringOption = form.watch("type") === "expense";
+  const showRecurringOption = form.watch("type") === "expense" || form.watch("category") === "salary";
   const isRecurring = form.watch("isRecurring");
   const isFixed = form.watch("isFixed");
   const showInstallments = form.watch("isRecurring") && !form.watch("isFixed");
@@ -231,23 +235,42 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
         )}
 
         {showInstallments && (
-          <FormField
-            control={form.control}
-            name="installments"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Número de parcelas</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="Digite o número de parcelas"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <>
+            <FormField
+              control={form.control}
+              name="installments"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Número total de parcelas</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="Digite o número de parcelas"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="paidInstallments"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Parcelas já pagas</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="Digite o número de parcelas já pagas"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
         )}
 
         <FormField

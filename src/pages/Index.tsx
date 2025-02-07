@@ -27,6 +27,7 @@ interface Transaction {
   installments?: {
     total: number;
     current: number;
+    paid: number;
   };
   isPaid?: boolean;
   dueDate?: string;
@@ -120,6 +121,7 @@ const Index = () => {
       installments: data.installments ? {
         total: parseInt(data.installments),
         current: 1,
+        paid: parseInt(data.paidInstallments) || 0,
       } : undefined,
       isPaid: false,
       dueDate: data.dueDate,
@@ -134,6 +136,7 @@ const Index = () => {
       if (data.isRecurring) {
         const recurringTransactions: Transaction[] = [];
         const months = data.installments ? parseInt(data.installments) : 12;
+        const paidInstallments = parseInt(data.paidInstallments) || 0;
         
         for (let i = 0; i < months; i++) {
           const date = new Date(data.date);
@@ -142,14 +145,19 @@ const Index = () => {
           const dueDate = new Date(data.dueDate);
           dueDate.setMonth(dueDate.getMonth() + i);
 
+          const current = i + 1;
+          const isPaid = current <= paidInstallments;
+
           recurringTransactions.push({
             ...newTransaction,
             id: transactions.length + 1 + i,
             date: date.toISOString().split('T')[0],
             dueDate: dueDate.toISOString().split('T')[0],
+            isPaid,
             installments: data.installments ? {
               total: months,
-              current: i + 1,
+              current,
+              paid: paidInstallments,
             } : undefined,
           });
         }
