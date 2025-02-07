@@ -91,7 +91,9 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
   const showRecurringOption = form.watch("type") === "expense" || form.watch("category") === "salary";
   const isRecurring = form.watch("isRecurring");
   const isFixed = form.watch("isFixed");
-  const showInstallments = form.watch("isRecurring") && !form.watch("isFixed");
+  const category = form.watch("category");
+  // Modificado para não mostrar parcelas quando for salário
+  const showInstallments = isRecurring && !isFixed && category !== "salary";
 
   return (
     <Form {...form}>
