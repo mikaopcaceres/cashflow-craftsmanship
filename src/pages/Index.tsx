@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
@@ -7,6 +6,7 @@ import { TransactionForm } from "@/components/Dashboard/TransactionForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -23,6 +23,13 @@ interface Transaction {
   category: string;
   date: string;
   isFixed?: boolean;
+  isRecurring?: boolean;
+  installments?: {
+    total: number;
+    current: number;
+  };
+  isPaid?: boolean;
+  dueDate?: string;
 }
 
 const MONTHS = [
@@ -35,10 +42,10 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { toast } = useToast();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  // Carregar transações do localStorage ao iniciar
   useEffect(() => {
     const savedTransactions = localStorage.getItem('transactions');
     if (savedTransactions) {
@@ -46,10 +53,29 @@ const Index = () => {
     }
   }, []);
 
-  // Salvar transações no localStorage sempre que houver mudanças
   useEffect(() => {
     localStorage.setItem('transactions', JSON.stringify(transactions));
   }, [transactions]);
+
+  // Check for upcoming due payments
+  useEffect(() => {
+    const today = new Date();
+    const threeDaysFromNow = new Date();
+    threeDaysFromNow.setDate(today.getDate() + 3);
+
+    const upcomingPayments = transactions.filter(t => {
+      if (!t.dueDate) return false;
+      const dueDate = new Date(t.dueDate);
+      return !t.isPaid && dueDate <= threeDaysFromNow && dueDate >= today;
+    });
+
+    upcomingPayments.forEach(payment => {
+      toast({
+        title: "Pagamento Próximo",
+        description: `${payment.description} vence em ${new Date(payment.dueDate!).toLocaleDateString('pt-BR')}`,
+      });
+    });
+  }, [transactions, toast]);
 
   const calculateTotals = () => {
     const filteredTransactions = transactions.filter(t => {
@@ -71,12 +97,15 @@ const Index = () => {
     };
   };
 
-  const budgetDistribution = [
-    { name: "Essenciais", value: 50, color: "#1E3A8A" },
-    { name: "Lazer", value: 20, color: "#059669" },
-    { name: "Desejos", value: 10, color: "#F97316" },
-    { name: "Investimentos", value: 20, color: "#6366F1" },
-  ];
+  const calculateCategoryTotals = (transactions: Transaction[]) => {
+    return transactions.reduce((acc, curr) => {
+      if (!acc[curr.category]) {
+        acc[curr.category] = 0;
+      }
+      acc[curr.category] += curr.amount;
+      return acc;
+    }, {} as Record<string, number>);
+  };
 
   const handleNewTransaction = (data: any) => {
     const newTransaction: Transaction = {
@@ -87,6 +116,13 @@ const Index = () => {
       category: data.category,
       date: data.date,
       isFixed: data.type === 'expense' ? data.isFixed : undefined,
+      isRecurring: data.isRecurring,
+      installments: data.installments ? {
+        total: parseInt(data.installments),
+        current: 1,
+      } : undefined,
+      isPaid: false,
+      dueDate: data.dueDate,
     };
 
     if (editingTransaction) {
@@ -94,11 +130,43 @@ const Index = () => {
         t.id === editingTransaction.id ? newTransaction : t
       ));
     } else {
-      setTransactions([...transactions, newTransaction]);
+      // If it's recurring, create future transactions
+      if (data.isRecurring) {
+        const recurringTransactions: Transaction[] = [];
+        const months = data.installments ? parseInt(data.installments) : 12;
+        
+        for (let i = 0; i < months; i++) {
+          const date = new Date(data.date);
+          date.setMonth(date.getMonth() + i);
+          
+          const dueDate = new Date(data.dueDate);
+          dueDate.setMonth(dueDate.getMonth() + i);
+
+          recurringTransactions.push({
+            ...newTransaction,
+            id: transactions.length + 1 + i,
+            date: date.toISOString().split('T')[0],
+            dueDate: dueDate.toISOString().split('T')[0],
+            installments: data.installments ? {
+              total: months,
+              current: i + 1,
+            } : undefined,
+          });
+        }
+        setTransactions([...transactions, ...recurringTransactions]);
+      } else {
+        setTransactions([...transactions, newTransaction]);
+      }
     }
 
     setEditingTransaction(null);
     setIsDialogOpen(false);
+  };
+
+  const handleTogglePayment = (id: number) => {
+    setTransactions(transactions.map(t => 
+      t.id === id ? { ...t, isPaid: !t.isPaid } : t
+    ));
   };
 
   const handleEdit = (transaction: Transaction) => {
@@ -146,7 +214,10 @@ const Index = () => {
   const fixedExpenses = filteredTransactions.filter(t => t.type === 'expense' && t.isFixed);
   const variableExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.isFixed);
 
-  // Gerar array de anos (5 anos antes e depois do atual)
+  const incomeCategoryTotals = calculateCategoryTotals(incomeTransactions);
+  const fixedExpenseCategoryTotals = calculateCategoryTotals(fixedExpenses);
+  const variableExpenseCategoryTotals = calculateCategoryTotals(variableExpenses);
+
   const currentYearNum = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYearNum - 5 + i);
 
@@ -209,18 +280,27 @@ const Index = () => {
             transactions={incomeTransactions}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onTogglePayment={handleTogglePayment}
+            categoryTotals={incomeCategoryTotals}
+            total={totals.income}
           />
           <TransactionBox
             title="Despesas Fixas"
             transactions={fixedExpenses}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onTogglePayment={handleTogglePayment}
+            categoryTotals={fixedExpenseCategoryTotals}
+            total={fixedExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
           />
           <TransactionBox
             title="Despesas Esporádicas"
             transactions={variableExpenses}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onTogglePayment={handleTogglePayment}
+            categoryTotals={variableExpenseCategoryTotals}
+            total={variableExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
           />
         </div>
 

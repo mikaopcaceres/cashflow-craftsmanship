@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   type: z.enum(["income", "expense"]),
@@ -29,6 +30,9 @@ const formSchema = z.object({
   category: z.string().min(1, "Categoria é obrigatória"),
   date: z.string().min(1, "Data é obrigatória"),
   isFixed: z.boolean().optional(),
+  isRecurring: z.boolean().optional(),
+  installments: z.string().optional(),
+  dueDate: z.string().optional(),
 });
 
 interface TransactionFormProps {
@@ -47,6 +51,9 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
       category: "",
       date: new Date().toISOString().split("T")[0],
       isFixed: false,
+      isRecurring: false,
+      installments: "",
+      dueDate: new Date().toISOString().split("T")[0],
     },
   });
 
@@ -59,6 +66,9 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
         category: initialData.category,
         date: initialData.date,
         isFixed: initialData.isFixed || false,
+        isRecurring: initialData.isRecurring || false,
+        installments: initialData.installments?.total?.toString() || "",
+        dueDate: initialData.dueDate || new Date().toISOString().split("T")[0],
       });
     }
   }, [initialData, form]);
@@ -75,6 +85,8 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
   };
 
   const showFixedOption = form.watch("type") === "expense";
+  const showRecurringOption = form.watch("type") === "expense";
+  const isRecurring = form.watch("isRecurring");
 
   return (
     <Form {...form}>
@@ -196,6 +208,60 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
             )}
           />
         )}
+
+        {showRecurringOption && (
+          <FormField
+            control={form.control}
+            name="isRecurring"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Repetir mensalmente</FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
+
+        {isRecurring && (
+          <FormField
+            control={form.control}
+            name="installments"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número de parcelas</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="Digite o número de parcelas"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        <FormField
+          control={form.control}
+          name="dueDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data de Vencimento</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <Button type="submit" className="w-full">
           {initialData ? 'Atualizar' : 'Adicionar'} Transação

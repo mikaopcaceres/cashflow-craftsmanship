@@ -1,7 +1,8 @@
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "./CategoryIcon";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface Transaction {
@@ -12,6 +13,13 @@ interface Transaction {
   category: string;
   date: string;
   isFixed?: boolean;
+  isRecurring?: boolean;
+  installments?: {
+    total: number;
+    current: number;
+  };
+  isPaid?: boolean;
+  dueDate?: string;
 }
 
 interface TransactionBoxProps {
@@ -19,9 +27,20 @@ interface TransactionBoxProps {
   transactions: Transaction[];
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: number) => void;
+  onTogglePayment: (id: number) => void;
+  categoryTotals: Record<string, number>;
+  total: number;
 }
 
-export const TransactionBox = ({ title, transactions, onEdit, onDelete }: TransactionBoxProps) => {
+export const TransactionBox = ({ 
+  title, 
+  transactions, 
+  onEdit, 
+  onDelete,
+  onTogglePayment,
+  categoryTotals,
+  total
+}: TransactionBoxProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -43,7 +62,26 @@ export const TransactionBox = ({ title, transactions, onEdit, onDelete }: Transa
 
   return (
     <Card className="p-6 bg-white shadow-lg">
-      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="text-lg font-semibold">{formatCurrency(total)}</p>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-gray-500 mb-2">Total por Categoria</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(categoryTotals).map(([category, amount]) => (
+            <div key={category} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <div className="flex items-center gap-2">
+                <CategoryIcon category={category} className="w-4 h-4 text-primary" />
+                <span className="text-sm">{category}</span>
+              </div>
+              <span className="text-sm font-medium">{formatCurrency(amount)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-4">
         {transactions.map((transaction) => (
           <div
@@ -53,8 +91,20 @@ export const TransactionBox = ({ title, transactions, onEdit, onDelete }: Transa
             <div className="flex items-center space-x-3">
               <CategoryIcon category={transaction.category} className="w-6 h-6 text-primary" />
               <div>
-                <p className="font-medium">{transaction.description}</p>
+                <p className="font-medium">
+                  {transaction.description}
+                  {transaction.installments && (
+                    <span className="ml-2 text-sm text-gray-500">
+                      ({transaction.installments.current}/{transaction.installments.total})
+                    </span>
+                  )}
+                </p>
                 <p className="text-sm text-gray-500">{transaction.category}</p>
+                {transaction.dueDate && (
+                  <p className="text-sm text-gray-500">
+                    Vencimento: {formatDate(transaction.dueDate)}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -67,6 +117,26 @@ export const TransactionBox = ({ title, transactions, onEdit, onDelete }: Transa
                 <p className="text-sm text-gray-500">{formatDate(transaction.date)}</p>
               </div>
               <div className="flex space-x-2">
+                {transaction.type === 'expense' && (
+                  <Button
+                    variant={transaction.isPaid ? "default" : "destructive"}
+                    size="sm"
+                    onClick={() => onTogglePayment(transaction.id)}
+                    className="flex items-center gap-1"
+                  >
+                    {transaction.isPaid ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Pago
+                      </>
+                    ) : (
+                      <>
+                        <X className="h-4 w-4" />
+                        Não Pago
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
