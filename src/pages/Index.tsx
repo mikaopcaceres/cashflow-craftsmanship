@@ -235,8 +235,32 @@ const Index = () => {
   const fixedExpenseCategoryTotals = calculateCategoryTotals(fixedExpenses);
   const variableExpenseCategoryTotals = calculateCategoryTotals(variableExpenses);
 
+  const calculatePaidUnpaidTotals = (transactions: Transaction[]) => {
+    return transactions.reduce(
+      (acc, curr) => {
+        if (curr.isPaid) {
+          acc.paid += curr.amount;
+        } else {
+          acc.unpaid += curr.amount;
+        }
+        return acc;
+      },
+      { paid: 0, unpaid: 0 }
+    );
+  };
+
+  const fixedExpensesTotals = calculatePaidUnpaidTotals(fixedExpenses);
+  const variableExpensesTotals = calculatePaidUnpaidTotals(variableExpenses);
+
   const currentYearNum = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYearNum - 5 + i);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -302,7 +326,7 @@ const Index = () => {
             total={totals.income}
           />
           <TransactionBox
-            title="Despesas Fixas"
+            title={`Despesas Fixas (Pago: ${formatCurrency(fixedExpensesTotals.paid)} | Não Pago: ${formatCurrency(fixedExpensesTotals.unpaid)})`}
             transactions={fixedExpenses}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -311,7 +335,7 @@ const Index = () => {
             total={fixedExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
           />
           <TransactionBox
-            title="Despesas Esporádicas"
+            title={`Despesas Esporádicas (Pago: ${formatCurrency(variableExpensesTotals.paid)} | Não Pago: ${formatCurrency(variableExpensesTotals.unpaid)})`}
             transactions={variableExpenses}
             onEdit={handleEdit}
             onDelete={handleDelete}

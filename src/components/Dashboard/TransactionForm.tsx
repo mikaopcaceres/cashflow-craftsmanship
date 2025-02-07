@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -87,6 +86,8 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
   const showFixedOption = form.watch("type") === "expense";
   const showRecurringOption = form.watch("type") === "expense";
   const isRecurring = form.watch("isRecurring");
+  const isFixed = form.watch("isFixed");
+  const showInstallments = form.watch("isRecurring") && !form.watch("isFixed");
 
   return (
     <Form {...form}>
@@ -209,7 +210,7 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
           />
         )}
 
-        {showRecurringOption && (
+        {showRecurringOption && !isFixed && (
           <FormField
             control={form.control}
             name="isRecurring"
@@ -229,7 +230,7 @@ export const TransactionForm = ({ onSubmit, initialData }: TransactionFormProps)
           />
         )}
 
-        {isRecurring && (
+        {showInstallments && (
           <FormField
             control={form.control}
             name="installments"
