@@ -107,6 +107,21 @@ const Index = () => {
     }, {} as Record<string, number>);
   };
 
+  // Add budget distribution calculation
+  const calculateBudgetDistribution = () => {
+    const categoryTotals = calculateCategoryTotals(
+      filteredTransactions.filter(t => t.type === 'expense')
+    );
+    
+    const totalExpenses = Object.values(categoryTotals).reduce((acc, curr) => acc + curr, 0);
+    
+    return Object.entries(categoryTotals).map(([category, amount]) => ({
+      name: category,
+      value: totalExpenses ? (amount / totalExpenses) * 100 : 0,
+      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+    }));
+  };
+
   const handleNewTransaction = (data: any) => {
     const newTransaction: Transaction = {
       id: editingTransaction?.id || transactions.length + 1,
@@ -203,6 +218,7 @@ const Index = () => {
   };
 
   const totals = calculateTotals();
+  const budgetDistribution = calculateBudgetDistribution();
 
   const filteredTransactions = transactions.filter(t => {
     const transactionDate = new Date(t.date);
@@ -220,6 +236,8 @@ const Index = () => {
 
   const currentYearNum = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYearNum - 5 + i);
+
+  const budgetDistributionData = calculateBudgetDistribution();
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -271,7 +289,7 @@ const Index = () => {
             income={totals.income}
             expenses={totals.expenses}
           />
-          <BudgetDistribution data={budgetDistribution} />
+          <BudgetDistribution data={budgetDistributionData} />
         </div>
 
         <div className="grid grid-cols-1 gap-6">
