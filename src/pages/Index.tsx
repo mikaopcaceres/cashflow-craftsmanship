@@ -274,11 +274,13 @@ const Index = () => {
 
   const incomeTransactions = filteredTransactions.filter(t => t.type === 'income');
   const fixedExpenses = filteredTransactions.filter(t => t.type === 'expense' && t.isFixed);
-  const variableExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.isFixed);
+  const installmentExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.isFixed && t.installments);
+  const dailyExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.isFixed && !t.installments);
 
   const incomeCategoryTotals = calculateCategoryTotals(incomeTransactions);
   const fixedExpenseCategoryTotals = calculateCategoryTotals(fixedExpenses);
-  const variableExpenseCategoryTotals = calculateCategoryTotals(variableExpenses);
+  const installmentExpenseCategoryTotals = calculateCategoryTotals(installmentExpenses);
+  const dailyExpenseCategoryTotals = calculateCategoryTotals(dailyExpenses);
 
   const calculatePaidUnpaidTotals = (transactions: Transaction[]) => {
     return transactions.reduce(
@@ -295,7 +297,8 @@ const Index = () => {
   };
 
   const fixedExpensesTotals = calculatePaidUnpaidTotals(fixedExpenses);
-  const variableExpensesTotals = calculatePaidUnpaidTotals(variableExpenses);
+  const installmentExpensesTotals = calculatePaidUnpaidTotals(installmentExpenses);
+  const dailyExpensesTotals = calculatePaidUnpaidTotals(dailyExpenses);
 
   const currentYearNum = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYearNum - 5 + i);
@@ -380,13 +383,22 @@ const Index = () => {
             total={fixedExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
           />
           <TransactionBox
-            title={`Despesas Esporádicas (Pago: ${formatCurrency(variableExpensesTotals.paid)} | Não Pago: ${formatCurrency(variableExpensesTotals.unpaid)})`}
-            transactions={variableExpenses}
+            title={`Despesas Parceladas (Pago: ${formatCurrency(installmentExpensesTotals.paid)} | Não Pago: ${formatCurrency(installmentExpensesTotals.unpaid)})`}
+            transactions={installmentExpenses}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onTogglePayment={handleTogglePayment}
-            categoryTotals={variableExpenseCategoryTotals}
-            total={variableExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
+            categoryTotals={installmentExpenseCategoryTotals}
+            total={installmentExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
+          />
+          <TransactionBox
+            title={`Despesas do dia a dia (Pago: ${formatCurrency(dailyExpensesTotals.paid)} | Não Pago: ${formatCurrency(dailyExpensesTotals.unpaid)})`}
+            transactions={dailyExpenses}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onTogglePayment={handleTogglePayment}
+            categoryTotals={dailyExpenseCategoryTotals}
+            total={dailyExpenses.reduce((acc, curr) => acc + curr.amount, 0)}
           />
         </div>
 
