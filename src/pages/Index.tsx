@@ -4,6 +4,7 @@ import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
 import { TransactionBox } from "@/components/Dashboard/TransactionBox";
 import { TransactionForm } from "@/components/Dashboard/TransactionForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +44,8 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<{id: number, description: string} | null>(null);
   const { toast } = useToast();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -58,7 +61,6 @@ const Index = () => {
     localStorage.setItem('transactions', JSON.stringify(transactions));
   }, [transactions]);
 
-  // Check for upcoming due payments
   useEffect(() => {
     const today = new Date();
     const threeDaysFromNow = new Date();
@@ -182,7 +184,44 @@ const Index = () => {
   };
 
   const handleDelete = (id: number) => {
-    setTransactions(transactions.filter(t => t.id !== id));
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+
+    setTransactionToDelete({
+      id,
+      description: transaction.description
+    });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = (deleteFuture: boolean) => {
+    if (!transactionToDelete) return;
+
+    if (deleteFuture) {
+      const transactionDate = new Date(
+        transactions.find(t => t.id === transactionToDelete.id)?.date || ''
+      );
+      
+      setTransactions(transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return t.id !== transactionToDelete.id || tDate < transactionDate;
+      }));
+
+      toast({
+        title: "Transação excluída",
+        description: "A transação e suas ocorrências futuras foram excluídas com sucesso.",
+      });
+    } else {
+      setTransactions(transactions.filter(t => t.id !== transactionToDelete.id));
+      
+      toast({
+        title: "Transação excluída",
+        description: "A transação foi excluída com sucesso.",
+      });
+    }
+
+    setTransactionToDelete(null);
+    setDeleteDialogOpen(false);
   };
 
   const handlePreviousMonth = () => {
@@ -364,6 +403,32 @@ const Index = () => {
             />
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Como deseja excluir a transação "{transactionToDelete?.description}"?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => handleDeleteConfirm(false)}
+              >
+                Apenas este mês
+              </AlertDialogAction>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => handleDeleteConfirm(true)}
+              >
+                Este e próximos meses
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
