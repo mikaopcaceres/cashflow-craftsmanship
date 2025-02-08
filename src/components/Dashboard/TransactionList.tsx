@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 
@@ -8,6 +9,15 @@ interface Transaction {
   amount: number;
   category: string;
   date: string;
+  isFixed?: boolean;
+  isRecurring?: boolean;
+  installments?: {
+    total: number;
+    current: number;
+    paid: number;
+  };
+  isPaid?: boolean;
+  dueDate?: string;
 }
 
 interface TransactionListProps {
@@ -26,6 +36,13 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
+  const calculateRemainingAmount = (transaction: Transaction) => {
+    if (!transaction.installments) return 0;
+    
+    const remainingInstallments = transaction.installments.total - transaction.installments.paid;
+    return transaction.amount * remainingInstallments;
+  };
+
   return (
     <Card className="p-6 bg-white shadow-lg">
       <h2 className="text-lg font-semibold mb-4">Últimas Transações</h2>
@@ -42,7 +59,14 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
                 <ArrowDownCircle className="w-6 h-6 text-accent" />
               )}
               <div>
-                <p className="font-medium">{transaction.description}</p>
+                <p className="font-medium">
+                  {transaction.description}
+                  {transaction.installments && (
+                    <span className="ml-2 text-sm text-gray-500">
+                      ({transaction.installments.paid}/{transaction.installments.total})
+                    </span>
+                  )}
+                </p>
                 <p className="text-sm text-gray-500">{transaction.category}</p>
               </div>
             </div>
@@ -52,6 +76,11 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
               }`}>
                 {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
               </p>
+              {transaction.installments && (
+                <p className="text-sm text-gray-500">
+                  Restante: {formatCurrency(calculateRemainingAmount(transaction))}
+                </p>
+              )}
               <p className="text-sm text-gray-500">{formatDate(transaction.date)}</p>
             </div>
           </div>

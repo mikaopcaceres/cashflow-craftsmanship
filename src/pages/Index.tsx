@@ -132,8 +132,7 @@ const Index = () => {
         t.id === editingTransaction.id ? newTransaction : t
       ));
     } else {
-      // If it's recurring, create future transactions
-      if (data.isRecurring) {
+      if (data.isFixed || data.isRecurring) {
         const recurringTransactions: Transaction[] = [];
         const months = data.installments ? parseInt(data.installments) : 12;
         const paidInstallments = parseInt(data.paidInstallments) || 0;
@@ -218,7 +217,6 @@ const Index = () => {
            transactionDate.getFullYear() === currentYear;
   });
 
-  // Moved calculateBudgetDistribution after filteredTransactions is defined
   const calculateBudgetDistribution = () => {
     const categoryTotals = calculateCategoryTotals(
       filteredTransactions.filter(t => t.type === 'expense')
