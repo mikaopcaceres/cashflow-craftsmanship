@@ -1,46 +1,20 @@
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
 import { TransactionBox } from "@/components/Dashboard/TransactionBox";
 import { TransactionForm } from "@/components/Dashboard/TransactionForm";
+import { DateNavigation } from "@/components/Dashboard/DateNavigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTransactions } from "@/hooks/useTransactions";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-interface Transaction {
-  id: number;
-  type: 'income' | 'expense';
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-  isFixed?: boolean;
-  isRecurring?: boolean;
-  installments?: {
-    total: number;
-    current: number;
-    paid: number;
-  };
-  isPaid?: boolean;
-  dueDate?: string;
-}
-
-const MONTHS = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
+import { Transaction } from "@/types/transaction";
+import { calculateTotals, calculateCategoryTotals, calculatePaidUnpaidTotals, formatCurrency, calculateBudgetDistribution } from "@/utils/transactionUtils";
 
 const Index = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { transactions, setTransactions } = useTransactions();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -49,66 +23,6 @@ const Index = () => {
   const { toast } = useToast();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
-
-  useEffect(() => {
-    const savedTransactions = localStorage.getItem('transactions');
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions));
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-  }, [transactions]);
-
-  useEffect(() => {
-    const today = new Date();
-    const threeDaysFromNow = new Date();
-    threeDaysFromNow.setDate(today.getDate() + 3);
-
-    const upcomingPayments = transactions.filter(t => {
-      if (!t.dueDate) return false;
-      const dueDate = new Date(t.dueDate);
-      return !t.isPaid && dueDate <= threeDaysFromNow && dueDate >= today;
-    });
-
-    upcomingPayments.forEach(payment => {
-      toast({
-        title: "Pagamento Próximo",
-        description: `${payment.description} vence em ${new Date(payment.dueDate!).toLocaleDateString('pt-BR')}`,
-      });
-    });
-  }, [transactions, toast]);
-
-  const calculateTotals = () => {
-    const filteredTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate.getMonth() === currentMonth && 
-             transactionDate.getFullYear() === currentYear;
-    });
-
-    const income = filteredTransactions
-      .filter((t) => t.type === "income")
-      .reduce((acc, curr) => acc + curr.amount, 0);
-    const expenses = filteredTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((acc, curr) => acc + curr.amount, 0);
-    return {
-      income,
-      expenses,
-      balance: income - expenses,
-    };
-  };
-
-  const calculateCategoryTotals = (transactions: Transaction[]) => {
-    return transactions.reduce((acc, curr) => {
-      if (!acc[curr.category]) {
-        acc[curr.category] = 0;
-      }
-      acc[curr.category] += curr.amount;
-      return acc;
-    }, {} as Record<string, number>);
-  };
 
   const handleNewTransaction = (data: any) => {
     const newTransaction: Transaction = {
@@ -251,7 +165,7 @@ const Index = () => {
     });
   };
 
-  const totals = calculateTotals();
+  const totals = calculateTotals(transactions, currentMonth, currentYear);
 
   const filteredTransactions = transactions.filter(t => {
     const transactionDate = new Date(t.date);
@@ -259,21 +173,7 @@ const Index = () => {
            transactionDate.getFullYear() === currentYear;
   });
 
-  const calculateBudgetDistribution = () => {
-    const categoryTotals = calculateCategoryTotals(
-      filteredTransactions.filter(t => t.type === 'expense')
-    );
-    
-    const totalExpenses = Object.values(categoryTotals).reduce((acc, curr) => acc + curr, 0);
-    
-    return Object.entries(categoryTotals).map(([category, amount]) => ({
-      name: category,
-      value: totalExpenses ? (amount / totalExpenses) * 100 : 0,
-      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-    }));
-  };
-
-  const budgetDistributionData = calculateBudgetDistribution();
+  const budgetDistributionData = calculateBudgetDistribution(filteredTransactions);
 
   const incomeTransactions = filteredTransactions.filter(t => t.type === 'income');
   const fixedExpenses = filteredTransactions.filter(t => t.type === 'expense' && t.isFixed);
@@ -285,33 +185,9 @@ const Index = () => {
   const installmentExpenseCategoryTotals = calculateCategoryTotals(installmentExpenses);
   const dailyExpenseCategoryTotals = calculateCategoryTotals(dailyExpenses);
 
-  const calculatePaidUnpaidTotals = (transactions: Transaction[]) => {
-    return transactions.reduce(
-      (acc, curr) => {
-        if (curr.isPaid) {
-          acc.paid += curr.amount;
-        } else {
-          acc.unpaid += curr.amount;
-        }
-        return acc;
-      },
-      { paid: 0, unpaid: 0 }
-    );
-  };
-
   const fixedExpensesTotals = calculatePaidUnpaidTotals(fixedExpenses);
   const installmentExpensesTotals = calculatePaidUnpaidTotals(installmentExpenses);
   const dailyExpensesTotals = calculatePaidUnpaidTotals(dailyExpenses);
-
-  const currentYearNum = new Date().getFullYear();
-  const years = Array.from({ length: 11 }, (_, i) => currentYearNum - 5 + i);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -325,37 +201,12 @@ const Index = () => {
           </Button>
         </div>
 
-        <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow">
-          <Button variant="ghost" onClick={handlePreviousMonth}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <div className="flex items-center gap-4">
-            <span className="text-lg font-medium">
-              {MONTHS[currentMonth]}
-            </span>
-            
-            <Select
-              value={currentYear.toString()}
-              onValueChange={handleYearChange}
-            >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Selecione o ano" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map(year => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button variant="ghost" onClick={handleNextMonth}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <DateNavigation
+          currentDate={currentDate}
+          onPreviousMonth={handlePreviousMonth}
+          onNextMonth={handleNextMonth}
+          onYearChange={handleYearChange}
+        />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <BalanceCard
@@ -450,3 +301,4 @@ const Index = () => {
 };
 
 export default Index;
+
