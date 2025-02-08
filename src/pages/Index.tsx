@@ -125,13 +125,19 @@ const Index = () => {
         current: 1,
         paid: parseInt(data.paidInstallments) || 0,
       } : undefined,
-      isPaid: false,
+      isPaid: data.isPaid || false,
       dueDate: data.dueDate,
     };
 
     if (editingTransaction) {
       setTransactions(transactions.map(t => 
-        t.id === editingTransaction.id ? newTransaction : t
+        t.id === editingTransaction.id ? {
+          ...newTransaction,
+          installments: newTransaction.installments ? {
+            ...newTransaction.installments,
+            paid: parseInt(data.paidInstallments) || 0,
+          } : undefined,
+        } : t
       ));
     } else {
       if (data.isFixed || data.isRecurring) {
@@ -146,20 +152,17 @@ const Index = () => {
           const dueDate = new Date(data.dueDate);
           dueDate.setMonth(dueDate.getMonth() + i);
 
-          const current = i + 1;
-          const isPaid = current <= paidInstallments;
-
           recurringTransactions.push({
             ...newTransaction,
             id: transactions.length + 1 + i,
             date: date.toISOString().split('T')[0],
             dueDate: dueDate.toISOString().split('T')[0],
-            isPaid,
             installments: data.installments ? {
               total: months,
-              current,
+              current: i + 1,
               paid: paidInstallments,
             } : undefined,
+            isPaid: (i + 1) <= paidInstallments,
           });
         }
         setTransactions([...transactions, ...recurringTransactions]);
