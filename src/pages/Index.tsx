@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
@@ -36,8 +35,8 @@ const Index = () => {
       isRecurring: data.isRecurring,
       installments: data.installments && data.isRecurring && !data.isFixed ? {
         total: parseInt(data.installments),
-        current: parseInt(data.paidInstallments) + 1,
-        paid: parseInt(data.paidInstallments),
+        current: parseInt(data.paidInstallments || '0') + 1,
+        paid: parseInt(data.paidInstallments || '0'),
       } : undefined,
       isPaid: data.isPaid || false,
       dueDate: data.dueDate,
@@ -45,43 +44,33 @@ const Index = () => {
 
     if (editingTransaction) {
       setTransactions(transactions.map(t => 
-        t.id === editingTransaction.id ? {
-          ...newTransaction,
-          installments: newTransaction.installments ? {
-            ...newTransaction.installments,
-            current: parseInt(data.paidInstallments) + 1,
-            paid: parseInt(data.paidInstallments),
-          } : undefined,
-        } : t
+        t.id === editingTransaction.id ? newTransaction : t
       ));
     } else {
       if (data.isFixed || data.isRecurring) {
         const recurringTransactions: Transaction[] = [];
         const months = data.installments ? parseInt(data.installments) : 12;
-        const paidInstallments = parseInt(data.paidInstallments) || 0;
+        const paidInstallments = parseInt(data.paidInstallments || '0');
         
-        for (let i = 0; i < months; i++) {
+        for (let i = paidInstallments; i < months; i++) {
           const date = new Date(data.date);
           date.setMonth(date.getMonth() + i);
           
           const dueDate = new Date(data.dueDate);
           dueDate.setMonth(dueDate.getMonth() + i);
 
-          // Só adiciona transações a partir da parcela atual (após as já pagas)
-          if (i >= paidInstallments) {
-            recurringTransactions.push({
-              ...newTransaction,
-              id: transactions.length + 1 + i,
-              date: date.toISOString().split('T')[0],
-              dueDate: dueDate.toISOString().split('T')[0],
-              installments: data.installments && data.isRecurring && !data.isFixed ? {
-                total: months,
-                current: i + 1,
-                paid: paidInstallments,
-              } : undefined,
-              isPaid: false,
-            });
-          }
+          recurringTransactions.push({
+            ...newTransaction,
+            id: transactions.length + 1 + i,
+            date: date.toISOString().split('T')[0],
+            dueDate: dueDate.toISOString().split('T')[0],
+            installments: data.installments && data.isRecurring && !data.isFixed ? {
+              total: months,
+              current: i + 1,
+              paid: paidInstallments,
+            } : undefined,
+            isPaid: false,
+          });
         }
         setTransactions([...transactions, ...recurringTransactions]);
       } else {
@@ -100,7 +89,9 @@ const Index = () => {
         if (newTransaction.installments) {
           newTransaction.installments = {
             ...newTransaction.installments,
-            paid: newTransaction.isPaid ? newTransaction.installments.paid + 1 : Math.max(0, newTransaction.installments.paid - 1),
+            paid: newTransaction.isPaid 
+              ? Math.min(newTransaction.installments.current, newTransaction.installments.paid + 1)
+              : Math.max(0, newTransaction.installments.paid - 1),
           };
         }
         return newTransaction;
@@ -127,16 +118,21 @@ const Index = () => {
 
   const handleDeleteConfirm = (deleteFuture: boolean) => {
     if (!transactionToDelete) return;
+    
+    const transactionToRemove = transactions.find(t => t.id === transactionToDelete.id);
+    if (!transactionToRemove) return;
 
     if (deleteFuture) {
-      const transactionDate = new Date(
-        transactions.find(t => t.id === transactionToDelete.id)?.date || ''
-      );
-      
-      setTransactions(transactions.filter(t => {
-        const tDate = new Date(t.date);
-        return t.id !== transactionToDelete.id || tDate < transactionDate;
-      }));
+      if (transactionToRemove.isRecurring) {
+        const transactionDate = new Date(transactionToRemove.date);
+        setTransactions(transactions.filter(t => {
+          if (t.description !== transactionToRemove.description) return true;
+          const tDate = new Date(t.date);
+          return tDate < transactionDate;
+        }));
+      } else {
+        setTransactions(transactions.filter(t => t.id !== transactionToDelete.id));
+      }
 
       toast({
         title: "Transação excluída",
