@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
@@ -35,8 +36,8 @@ const Index = () => {
       isRecurring: data.isRecurring,
       installments: data.installments && data.isRecurring && !data.isFixed ? {
         total: parseInt(data.installments),
-        current: 1,
-        paid: 0,
+        current: parseInt(data.paidInstallments) + 1,
+        paid: parseInt(data.paidInstallments),
       } : undefined,
       isPaid: data.isPaid || false,
       dueDate: data.dueDate,
@@ -48,16 +49,16 @@ const Index = () => {
           ...newTransaction,
           installments: newTransaction.installments ? {
             ...newTransaction.installments,
-            current: t.installments?.current || 1,
-            paid: data.isPaid ? (t.installments?.paid || 0) + 1 : t.installments?.paid || 0,
+            current: parseInt(data.paidInstallments) + 1,
+            paid: parseInt(data.paidInstallments),
           } : undefined,
-          isPaid: data.isPaid,
         } : t
       ));
     } else {
       if (data.isFixed || data.isRecurring) {
         const recurringTransactions: Transaction[] = [];
         const months = data.installments ? parseInt(data.installments) : 12;
+        const paidInstallments = parseInt(data.paidInstallments) || 0;
         
         for (let i = 0; i < months; i++) {
           const date = new Date(data.date);
@@ -66,18 +67,21 @@ const Index = () => {
           const dueDate = new Date(data.dueDate);
           dueDate.setMonth(dueDate.getMonth() + i);
 
-          recurringTransactions.push({
-            ...newTransaction,
-            id: transactions.length + 1 + i,
-            date: date.toISOString().split('T')[0],
-            dueDate: dueDate.toISOString().split('T')[0],
-            installments: data.installments && data.isRecurring && !data.isFixed ? {
-              total: months,
-              current: i + 1,
-              paid: 0,
-            } : undefined,
-            isPaid: false,
-          });
+          // Só adiciona transações a partir da parcela atual (após as já pagas)
+          if (i >= paidInstallments) {
+            recurringTransactions.push({
+              ...newTransaction,
+              id: transactions.length + 1 + i,
+              date: date.toISOString().split('T')[0],
+              dueDate: dueDate.toISOString().split('T')[0],
+              installments: data.installments && data.isRecurring && !data.isFixed ? {
+                total: months,
+                current: i + 1,
+                paid: paidInstallments,
+              } : undefined,
+              isPaid: false,
+            });
+          }
         }
         setTransactions([...transactions, ...recurringTransactions]);
       } else {
