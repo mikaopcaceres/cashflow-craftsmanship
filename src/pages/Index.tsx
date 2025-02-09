@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
@@ -33,7 +34,7 @@ const Index = () => {
       date: data.date,
       isFixed: data.type === 'expense' ? data.isFixed : undefined,
       isRecurring: data.isRecurring,
-      installments: data.installments && data.isRecurring && !data.isFixed ? {
+      installments: data.installments && data.type === 'expense' && !data.isFixed ? {
         total: parseInt(data.installments),
         current: parseInt(data.paidInstallments || '0') + 1,
         paid: parseInt(data.paidInstallments || '0'),
@@ -64,7 +65,7 @@ const Index = () => {
             id: transactions.length + 1 + i,
             date: date.toISOString().split('T')[0],
             dueDate: dueDate.toISOString().split('T')[0],
-            installments: data.installments && data.isRecurring && !data.isFixed ? {
+            installments: data.type === 'expense' && !data.isFixed ? {
               total: months,
               current: i + 1,
               paid: paidInstallments,
@@ -187,8 +188,12 @@ const Index = () => {
 
   const incomeTransactions = filteredTransactions.filter(t => t.type === 'income');
   const fixedExpenses = filteredTransactions.filter(t => t.type === 'expense' && t.isFixed);
-  const installmentExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.isFixed && t.installments);
-  const dailyExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.isFixed && !t.installments);
+  const installmentExpenses = filteredTransactions.filter(t => 
+    t.type === 'expense' && !t.isFixed && t.installments
+  );
+  const dailyExpenses = filteredTransactions.filter(t => 
+    t.type === 'expense' && !t.isFixed && !t.installments
+  );
 
   const incomeCategoryTotals = calculateCategoryTotals(incomeTransactions);
   const fixedExpenseCategoryTotals = calculateCategoryTotals(fixedExpenses);
