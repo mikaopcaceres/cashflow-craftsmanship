@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
@@ -37,7 +36,7 @@ const Index = () => {
       installments: data.installments && data.isRecurring && !data.isFixed ? {
         total: parseInt(data.installments),
         current: 1,
-        paid: parseInt(data.paidInstallments) || 0,
+        paid: 0,
       } : undefined,
       isPaid: data.isPaid || false,
       dueDate: data.dueDate,
@@ -49,15 +48,16 @@ const Index = () => {
           ...newTransaction,
           installments: newTransaction.installments ? {
             ...newTransaction.installments,
-            paid: parseInt(data.paidInstallments) || 0,
+            current: t.installments?.current || 1,
+            paid: data.isPaid ? (t.installments?.paid || 0) + 1 : t.installments?.paid || 0,
           } : undefined,
+          isPaid: data.isPaid,
         } : t
       ));
     } else {
       if (data.isFixed || data.isRecurring) {
         const recurringTransactions: Transaction[] = [];
         const months = data.installments ? parseInt(data.installments) : 12;
-        const paidInstallments = parseInt(data.paidInstallments) || 0;
         
         for (let i = 0; i < months; i++) {
           const date = new Date(data.date);
@@ -71,12 +71,12 @@ const Index = () => {
             id: transactions.length + 1 + i,
             date: date.toISOString().split('T')[0],
             dueDate: dueDate.toISOString().split('T')[0],
-            installments: data.installments ? {
+            installments: data.installments && data.isRecurring && !data.isFixed ? {
               total: months,
               current: i + 1,
-              paid: i < paidInstallments ? 1 : 0,
+              paid: 0,
             } : undefined,
-            isPaid: i < paidInstallments,
+            isPaid: false,
           });
         }
         setTransactions([...transactions, ...recurringTransactions]);
@@ -90,9 +90,19 @@ const Index = () => {
   };
 
   const handleTogglePayment = (id: number) => {
-    setTransactions(transactions.map(t => 
-      t.id === id ? { ...t, isPaid: !t.isPaid } : t
-    ));
+    setTransactions(transactions.map(t => {
+      if (t.id === id) {
+        const newTransaction = { ...t, isPaid: !t.isPaid };
+        if (newTransaction.installments) {
+          newTransaction.installments = {
+            ...newTransaction.installments,
+            paid: newTransaction.isPaid ? newTransaction.installments.paid + 1 : Math.max(0, newTransaction.installments.paid - 1),
+          };
+        }
+        return newTransaction;
+      }
+      return t;
+    }));
   };
 
   const handleEdit = (transaction: Transaction) => {
