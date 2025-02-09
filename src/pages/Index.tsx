@@ -5,7 +5,7 @@ import { BudgetDistribution } from "@/components/Dashboard/BudgetDistribution";
 import { TransactionBox } from "@/components/Dashboard/TransactionBox";
 import { TransactionForm } from "@/components/Dashboard/TransactionForm";
 import { DateNavigation } from "@/components/Dashboard/DateNavigation";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -34,7 +34,7 @@ const Index = () => {
       date: data.date,
       isFixed: data.type === 'expense' ? data.isFixed : undefined,
       isRecurring: data.isRecurring,
-      installments: data.installments ? {
+      installments: data.installments && data.isRecurring && !data.isFixed ? {
         total: parseInt(data.installments),
         current: 1,
         paid: parseInt(data.paidInstallments) || 0,
@@ -74,9 +74,9 @@ const Index = () => {
             installments: data.installments ? {
               total: months,
               current: i + 1,
-              paid: paidInstallments,
+              paid: i < paidInstallments ? 1 : 0,
             } : undefined,
-            isPaid: (i + 1) <= paidInstallments,
+            isPaid: i < paidInstallments,
           });
         }
         setTransactions([...transactions, ...recurringTransactions]);
@@ -262,6 +262,9 @@ const Index = () => {
               <DialogTitle>
                 {editingTransaction ? 'Editar Transação' : 'Nova Transação'}
               </DialogTitle>
+              <DialogDescription>
+                Preencha os campos abaixo para {editingTransaction ? 'editar a' : 'adicionar uma nova'} transação.
+              </DialogDescription>
             </DialogHeader>
             <TransactionForm
               onSubmit={handleNewTransaction}
@@ -301,4 +304,3 @@ const Index = () => {
 };
 
 export default Index;
-
